@@ -38,6 +38,12 @@ local data
 local msg
 local cursorStates
 
+local canvas
+local brushSize = 5
+
+local imgCursorPassive = love.graphics.newImage("img/cursor.png")
+local imgCursorActive = love.graphics.newImage("img/cursorClick.png")
+
 function love.load()
 	socket = require("socket")
 
@@ -45,7 +51,7 @@ function love.load()
 
 	local address = configData[1]
 	local port = configData[2]
-	local name = configData[3] or "noNameRead"
+	local name = configData[3] or "noNameFound"
 	local color = { configData[4] or 1, configData[5] or 1, configData[6] or 1 }
 
 	print("[~] Setting up UDP connection to " .. address .. ":" .. port)
@@ -53,6 +59,10 @@ function love.load()
 	udp = socket.udp()
 	udp:setpeername(address, port)
 	udp:settimeout(0)
+
+	local gameWidth, gameHeight = love.graphics.getDimensions()
+	canvas = love.graphics.newCanvas(gameWidth, gameHeight)
+
 	print("[+] Client ready!")
 	print("[~] Connecting to the server...")
 
@@ -90,8 +100,9 @@ function love.load()
 
 	print("[+] Connected!")
 	cursorStates = {
-		love.graphics.newImage("img/cursor.png"),
-		love.graphics.newImage("img/cursorClick.png"),
+		imgCursorPassive,
+		imgCursorActive,
+		imgCursorActive,
 	}
 
 	love.mouse.setVisible(false)
@@ -99,8 +110,8 @@ function love.load()
 	print("[+] Initialisation complete!")
 end
 
-function love.mousepressed()
-	players[playerID].state = 2
+function love.mousepressed(x, y, state)
+	players[playerID].state = state + 1
 end
 
 function love.mousereleased()
@@ -167,9 +178,27 @@ function love.update(dt)
 			error("[!] Network error: " .. tostring(msg))
 		end
 	until not data
+
+	for id, player in ipairs(players) do
+		if player.state == 2 then
+			love.graphics.setCanvas(canvas)
+			love.graphics.setColor(player.colorR, player.colorG, player.colorB)
+			love.graphics.circle("fill", player.x, player.y, brushSize)
+			love.graphics.setCanvas()
+			love.graphics.setColor(1, 1, 1)
+		elseif player.state == 3 then
+			love.graphics.setCanvas(canvas)
+			love.graphics.setColor(0, 0, 0)
+			love.graphics.circle("fill", player.x, player.y, brushSize)
+			love.graphics.setCanvas()
+			love.graphics.setColor(1, 1, 1)
+		end
+	end
 end
 
 function love.draw()
+	love.graphics.draw(canvas, 0, 0)
+	love.graphics.circle("line", players[playerID].x, players[playerID].y, brushSize)
 	for id, player in ipairs(players) do
 		love.graphics.draw(cursorStates[player.state], player.x, player.y)
 		love.graphics.setColor(player.colorR, player.colorG, player.colorB)
